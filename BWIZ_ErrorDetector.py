@@ -4,12 +4,12 @@ from pathlib import Path
 from pydub import AudioSegment
 from pydub.playback import play
 
-class ComfyAnyType(str):
+class AnyType(str):
     def __ne__(self, __value: object) -> bool:
         return False
 
-any = ComfyAnyType("*")
 
+any = AnyType("*")
 class BWIZ_ErrorDetector:
     def __init__(self):
         self.sound_directory = Path(__file__).parent / "res" / "navi"
@@ -67,7 +67,7 @@ class BWIZ_ErrorDetector:
     RETURN_TYPES = ("BOOLEAN",)
     RETURN_NAMES = ("error_detected",)
     FUNCTION = "detect_error"
-    CATEGORY = "BWIZ Nodes/Error Handling"
+    CATEGORY = "BWIZ/Error Handling"
 
 if __name__ == "__main__":
     error_detector = BWIZ_ErrorDetector()
