@@ -13,42 +13,45 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-class CptnWebhook:
+
+class CaptainWebhook:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "any": (ComfyAnyType("*"), {}),
-                "webhook_url": ("STRING", {"multiline": False, "placeholder": "Webhook URL"}),
-                "input_filename": ("STRING", {"multiline": False, "placeholder": "Input filename"}),
-                "input_image": (["IMAGE", "VIDEO"],),
-                "text_data": ("STRING", {"multiline": True, "placeholder": "Text data, JSON or file content"}),
-                "notification_text": ('STRING', {'default': 'Your notification has triggered.'}),
-                "json_format": ('STRING', {'default': '{"text": "<notification_text>"}'}),
-                "timeout": ('FLOAT', {'default': 3, 'min': 0, 'max': 60}),
+                "webhook_url": ("STRING", {"multiline": False, "default": 'http://localhost:5000/', "placeholder": "Webhook URL, or Discord Webhook URL"}),
+                "input_filename": ("STRING", {"multiline": False, "default": '', "placeholder": "Filename prefix or full name, can be input."}),
+                "input_image": ("IMAGE",),
+                "message": ("STRING", {"multiline": True, "default": '', "placeholder": "Type Message Here(Or Convert to Input)"}),
+                "timeout": ('FLOAT', {'default': 120, 'min': 10, 'max': 600}),
             },
             "optional": {
-                "save_locally": (["false", "true"],),
+                "save_locally": (["false", "true"], {"default": "false"}),
             }
         }
-    RETURN_TYPES = tuple()
-    OUTPUT_MODE = True
-    FUNCTION = "process_and_send"
-    CATEGORY = "BWIZ Nodes/Webhook"
 
-    def process_and_send(self, any, webhook_url='', input_filename='', text_data='', input_image=None, save_locally='false', notification_text='', json_format='', timeout=3):
-        save_locally = (save_locally == 'true')
+    RETURN_TYPES = ("IMAGE", "STRING")
+    OUTPUT_NODE = True
+    FUNCTION = "process_and_send"
+    CATEGORY = "BWIZ/Notifications"
+
+    def process_and_send(self, webhook_url, input_filename, input_image, message, timeout, save_locally="false"):
+        # ... (implementation details)        save_locally = (save_locally == 'true')
 
         if input_image is None:
-            raise Exception("No image or video provided")
+            raise ValueError("No image provided")
 
-        # Determine filename based on input type
-        if not input_filename:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"output_{timestamp}.png" if isinstance(input_image, Image.Image) else f"output_{timestamp}.mp4"
+        # Convert tensor to PIL Image
+        pil_image = self.tensor_to_pil(input_image)
+
+        # Determine filename
+        if input_filename:
+            filename = Path(input_filename)
+            if not filename.suffix:
+                filename = filename.with_suffix('.png')
         else:
-            filename = Path(input_filename).stem
-            filename = f"{filename}.png" if isinstance(input_image, Image.Image) else f"{filename}.mp4"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = Path(f"output_{timestamp}.png")
 
         # Determine output directory
         output_dir = Path(os.path.dirname(__file__)) / "outputs" if save_locally else Path(tempfile.gettempdir())
@@ -56,78 +59,55 @@ class CptnWebhook:
 
         file_path = output_dir / filename
 
-        # Process based on input type
-        if isinstance(input_image, Image.Image):
-            input_image = input_image.convert("RGB")
-            input_image.save(file_path)
-            output = input_image
-        elif isinstance(input_image, list) and all(isinstance(img, Image.Image) for img in input_image):
-            frames = [np.array(img.convert("RGB")) for img in input_image]
-            clip = ImageSequenceClip(frames, fps=24)  # Assuming a default frame rate if needed
-            clip.write_videofile(str(file_path), codec="libx264")
-            output = "Video saved"
+        # Save image
+        pil_image.save(file_path)
 
-        # Create and save metadata
-        metadata_path = output_dir / f"{Path(filename).stem}_metadata.json"
-        with open(metadata_path, 'w') as f:
-            f.write(text_data)
+        # Create JSON file with the same name as the image
+        json_path = file_path.with_suffix('.json')
+        with open(json_path, 'w') as json_file:
+            json.dump({message}, json_file)
 
-        print(f"Metadata saved at: {metadata_path}")
         # Upload to webhook
-        with open(file_path, "rb") as file_data:
+        with open(file_path, "rb") as image_file, open(json_path, "rb") as json_file:
             files = {
-                "payload_json": (None, json.dumps({"content": text_data})),
-                "file": (filename, file_data)
+                "file": (filename.name, image_file),
+                "json": (json_path.name, json_file)
             }
-            response = requests.post(webhook_url, files=files)
+            response = requests.post(webhook_url, files=files, timeout=timeout)
 
-        result_message = f"Uploaded {filename}. Status: {response.status_code}"
+        result_message = f"Uploaded {filename.name} and {json_path.name}. Status: {response.status_code}"
 
         # Clean up temporary files if not saving locally
         if not save_locally:
             file_path.unlink()
-            # Comment out or remove the following line to keep the JSON file
-            # metadata_path.unlink()
+            json_path.unlink()
 
-        print(f"JSON metadata file remains at: {metadata_path}")
+        return (input_image, result_message)
 
-        # Add webhook notification
-        payload = json_format.replace("<notification_text>", notification_text)
-        payload = json.loads(payload)
-        try:
-            res = requests.post(webhook_url, json=payload, timeout=timeout)
-            res.raise_for_status()
-            result_message += f" Webhook notification sent. Status: {res.status_code}"
-        except requests.RequestException as e:
-            result_message += f" Webhook notification failed: {str(e)}"
-
-        return (output, result_message)
-    
     def tensor_to_pil(self, tensor):
-            if tensor.dim() == 4:
-                tensor = tensor.squeeze(0)
-            if tensor.shape[0] == 1:
-                tensor = tensor.squeeze(0)
-            if tensor.dim() == 3 and tensor.shape[0] == 1:
-                tensor = tensor.squeeze(0)
+        if tensor.dim() == 4:
+            tensor = tensor.squeeze(0)
+        if tensor.shape[0] == 1:
+            tensor = tensor.squeeze(0)
+        if tensor.dim() == 3 and tensor.shape[0] == 1:
+            tensor = tensor.squeeze(0)
 
-            # Normalize the tensor if it's not in the range [0, 255]
-            if tensor.max() <= 1:
-                tensor = (tensor * 255).clamp(0, 255)
+        # Normalize the tensor if it's not in the range [0, 255]
+        if tensor.max() <= 1:
+            tensor = (tensor * 255).clamp(0, 255)
 
-            # Convert to 8-bit unsigned integer
-            numpy_array = tensor.cpu().numpy().astype(np.uint8)
+        # Convert to 8-bit unsigned integer
+        numpy_array = tensor.cpu().numpy().astype(np.uint8)
 
-            # If the array is 2D, convert it to 3D
-            if numpy_array.ndim == 2:
-                numpy_array = numpy_array[:, :, np.newaxis]
+        # If the array is 2D, convert it to 3D
+        if numpy_array.ndim == 2:
+            numpy_array = numpy_array[:, :, np.newaxis]
 
-            # If the array has only one channel, repeat it to create an RGB image
-            if numpy_array.shape[2] == 1:
-                numpy_array = np.repeat(numpy_array, 3, axis=2)
+        # If the array has only one channel, repeat it to create an RGB image
+        if numpy_array.shape[2] == 1:
+            numpy_array = np.repeat(numpy_array, 3, axis=2)
 
-            return Image.fromarray(numpy_array)    
-        
+        return Image.fromarray(numpy_array)
 def generate_and_upload(self, images, webhook_url: str, filename: str, frame_rate: int, save_locally: bool, message: str):
         output_dir = os.path.join(os.path.dirname(__file__), "outputs") if save_locally else tempfile.gettempdir()
         os.makedirs(output_dir, exist_ok=True)

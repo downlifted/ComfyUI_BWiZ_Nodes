@@ -1,42 +1,14 @@
-export const notificationSetup = () => {
-    if (!('Notification' in window)) {
-        console.log('This browser does not support notifications.')
-        alert('This browser does not support notifications.')
-        return
-    }
-    if (Notification.permission === 'denied') {
-        console.log('Notifications are blocked. Please enable them in your browser settings.')
-        alert('Notifications are blocked. Please enable them in your browser settings.')
-        return
-    }
-    if (Notification.permission !== 'granted') {
-        Notification.requestPermission()
-    }
-    return true
-}
-
-export const sendNotification = (title, body) => {
-    if (!notificationSetup()) return
-    const notification = new Notification(title, { body })
-    return notification
-}
-
-export const getNotificationTextFromArguments = (args) => {
-    return args[0]?.notification_text[0] ?? 'Your notification has triggered.'
-}
-
 export const playSound = (file, volume) => {
     if (!file) {
         file = 'notify.mp3'
     }
     if (!file.startsWith('http')) {
         if (!file.includes('/')) {
-            file = 'assets/' + file
+            file = 'sounds/' + file
         }
-        file = new URL(file, import.meta.url)
+        file = new URL(file, import.meta.url).href
     }
-    const url = new URL(file)
-    const audio = new Audio(url)
+    const audio = new Audio(file)
     audio.volume = volume
     audio.play()
 }

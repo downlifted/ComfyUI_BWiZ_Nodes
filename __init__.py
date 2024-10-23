@@ -1,31 +1,28 @@
-from .nodes.CaptainWebhook import CptnWebhook
-from .nodes.CaptainWebhook import CptnSendEmail
-from .nodes.CaptainWebhook import CptnPushNoti
+from .nodes.CaptainWebhook import CaptainWebhook
+from .nodes.ComfyEmail import BWIZSendEmail
 from .nodes.AdvancedLoadImageBatch import AdvancedLoadImageBatch
-from .nodes.ErrorDetector import ErrorDetector
+from .nodes.ErrorDetector import InteractiveLogViewer
 from .nodes.HFRepoBatchLoader import HFRepoBatchLoader
 from .nodes.NotificationSound import NotificationSound
 
 
 NODE_CLASS_MAPPINGS = {
-    "CaptainWebhook": CptnWebhook,
-    "CaptainWebhook-Email": CptnSendEmail,
-    "CaptainWebhook-Push": CptnPushNoti,
+    "BWIZ_CaptainWebhook": CaptainWebhook,
+    "BWIZ_ComfyEmail": BWIZSendEmail,
     "BWIZ_AdvancedLoadImageBatch": AdvancedLoadImageBatch,
-    "BWIZ_ErrorDetector": ErrorDetector,
+    "BWIZ_ErrorDetector": InteractiveLogViewer,
     "BWIZ_HFRepoBatchLoader": HFRepoBatchLoader,
     "BWIZ_NotificationSound": NotificationSound,
 
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "CptnWebhook": "🧙🏼 BWIZ | Captain Webhook(Hook)",
-    "AdvancedLoadImageBatch": "🧙🏼 BWiZ | Batch Image Loader(Natural Increments)",
-    "ErrorDetector": "🧙🏼 BWiZ | Error Detector (Notification)",
-    "HFRepoBatchLoader": "🧙🏼 BWiZ | Batch Image Loader (HF Repo)",
-    "NotificationSound": "🧙🏼 BWiZ | Notification Sound (Navi)",
-    "CptnSendEmail": "🧙🏼 BWIZ | Captain Webhook(Email)",
-    "CptnPushNoti": "🧙🏼 BWIZ | Captain Webhook(Push Notffication)",
+    "BWIZ_CaptainWebhook": "🧙🏼 BWIZ | Captain Webhook",
+    "BWIZ_AdvancedLoadImageBatch": "🧙🏼 BWiZ | Batch Image Loader(Natural Increments)",
+    "BWIZ_ErrorDetector": "🧙🏼 BWiZ | Error Detector/Alert (Log Viewer)",
+    "BWIZ_HFRepoBatchLoader": "🧙🏼 BWiZ | Batch Image Loader (HF Repo)",
+    "BWIZ_NotificationSound": "🧙🏼 BWiZ | Notification Sound",
+    "BWIZ_CaptainWebhook-Email": "🧙🏼 BWIZ | Captain Webhook(Email)",
 
 
 

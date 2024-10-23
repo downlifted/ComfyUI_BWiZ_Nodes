@@ -4,15 +4,20 @@ import { playSound, appQueueIsEmpty } from './util.js'
 app.registerExtension({
     name: 'Notifications.PlaySound',
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === '🧙🏼 BWIZ | Notification Sound (Navi)') {
+        if (nodeData.name === 'BWIZ_NotificationSound') {
             const onExecuted = nodeType.prototype.onExecuted
-            nodeType.prototype.onExecuted = async function () {
+            nodeType.prototype.onExecuted = async function (message) {
                 onExecuted?.apply(this, arguments)
-                if (this.widgets[0].value === 'on empty queue') {
-                    if (!await appQueueIsEmpty(app)) return
+                
+                if (message?.ui?.data) {
+                    const data = JSON.parse(message.ui.data)
+                    if (data.type === 'notification_sound') {
+                        const { file, volume, mode } = data.data
+                        if (mode === 'always' || (mode === 'on empty queue' && await appQueueIsEmpty(app))) {
+                            playSound(file, volume)
+                        }
+                    }
                 }
-                let file = this.widgets[2].value
-                playSound(file, this.widgets[1].value)
             }
         }
     },
